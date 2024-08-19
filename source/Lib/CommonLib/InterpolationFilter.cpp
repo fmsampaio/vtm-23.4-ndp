@@ -641,6 +641,11 @@ void InterpolationFilter::filterHor(const ComponentID compID, Pel const *src, co
                                     const ptrdiff_t dstStride, int width, int height, int frac, bool isLast,
                                     const ClpRng &clpRng, Filter nFilterIdx)
 {
+  if(isLuma(compID)) {
+    int filterId = (int) nFilterIdx;
+    std::cout << "FHor: " << frac << " - " << filterId << "\n";
+  }
+  
   if (frac == 0 && nFilterIdx <= Filter::AFFINE)
   {
     m_filterCopy[true][isLast](clpRng, src, srcStride, dst, dstStride, width, height, nFilterIdx == Filter::DMVR);
@@ -712,6 +717,11 @@ void InterpolationFilter::filterVer(const ComponentID compID, Pel const *src, co
                                     const ptrdiff_t dstStride, int width, int height, int frac, bool isFirst,
                                     bool isLast, const ClpRng &clpRng, Filter nFilterIdx)
 {
+  if(isLuma(compID)) {
+    int filterId = (int) nFilterIdx;
+    std::cout << "FVer: " << frac << " - " << filterId << "\n";
+  }
+
   if (frac == 0 && nFilterIdx <= Filter::AFFINE)
   {
     m_filterCopy[isFirst][isLast](clpRng, src, srcStride, dst, dstStride, width, height, nFilterIdx == Filter::DMVR);

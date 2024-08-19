@@ -711,6 +711,17 @@ void InterPrediction::xPredInterBlk(const ComponentID compID, const PredictionUn
       yFrac = mv.ver * (1 << (1 - ::getComponentScaleY(compID, chFmt))) & 31;
     }
 
+    if(isLuma(compID)) {
+      // Debug-Frac-MC
+      std::cout << "Frames: (C) " << pu.cu->slice->getPOC() << " (R) " << refPic->getPOC() << "\n";
+      std::cout << "CU: (" << pu.lx() << "," << pu.ly() << ") [" << pu.lwidth() << "x" << pu.lheight() << "]\n";
+      std::cout << "MV (orig): (" << mv.hor << "," << mv.ver << ")\n";
+      std::cout << "Shifts: (" << shiftHor << "," << shiftVer << ")\n";
+      std::cout << "Integ MV: (" << (mv.getHor() >> shiftHor) << "," << (mv.getVer() >> shiftVer) << ")\n";
+      std::cout << "Frac MV: (" << xFrac << "," << yFrac << ")\n";
+    }
+
+
     PelBuf & dstBuf = dstPic.bufs[compID];
     const unsigned width  = dstBuf.width;
     const unsigned height = dstBuf.height;
@@ -807,6 +818,8 @@ void InterPrediction::xPredInterBlk(const ComponentID compID, const PredictionUn
       dstBuf.stride = backupDstBufStride;
     }
   }
+  if(isLuma(compID))
+    std::cout << "\n";
 }
 
 bool InterPrediction::isSubblockVectorSpreadOverLimit( int a, int b, int c, int d, int predType )
