@@ -41,6 +41,8 @@
 #include "DecApp.h"
 #include "program_options_lite.h"
 
+#include "../../Lib/CommonLib/MvLogger.h"
+
 //! \ingroup DecoderApp
 //! \{
 
@@ -51,6 +53,9 @@
 int main(int argc, char* argv[])
 {
   int returnCode = EXIT_SUCCESS;
+
+  // MvLogger
+  MvLogger::init();
 
   // print information
   fprintf( stdout, "\n" );
@@ -115,6 +120,9 @@ int main(int argc, char* argv[])
   printf("\n Total Time: %12.3f sec.\n", dResult);
 
   delete pcDecApp;
+
+  // MvLogger
+  MvLogger::close();
 
   return returnCode;
 }

@@ -40,6 +40,7 @@
 #include "Buffer.h"
 #include "UnitTools.h"
 #include "MCTS.h"
+#include "MvLogger.h"
 
 #include <memory.h>
 #include <algorithm>
@@ -508,6 +509,7 @@ void InterPrediction::xPredInterUni(const PredictionUnit &pu, const RefPicList &
     {
       continue;
     }
+
     if ( pu.cu->affine )
     {
       CHECK(bioApplied, "BIO is not allowed with affine");
@@ -714,6 +716,27 @@ void InterPrediction::xPredInterBlk(const ComponentID compID, const PredictionUn
     PelBuf & dstBuf = dstPic.bufs[compID];
     const unsigned width  = dstBuf.width;
     const unsigned height = dstBuf.height;
+
+    // // MvLogger
+    // if(MvLogger::isDecoding()) {
+    //   if(isLuma(compID)) {
+    //     int currFramePoc = pu.cu->slice->getPOC();
+    //     PosType xCU = pu.cu->lx();
+    //     PosType yCU = pu.cu->ly();
+    //     SizeType wCU = pu.cu->lwidth();
+    //     SizeType hCU = pu.cu->lheight();
+    //     int refFramePoc = refPic->getPOC();
+    //     int xMV = mv.hor;
+    //     int yMV = mv.ver;
+    //     int xIntegMV = mv.getHor() >> shiftHor;
+    //     int yIntegMV = mv.getVer() >> shiftVer;
+    //     int xFracMV = xFrac;
+    //     int yFracMV = yFrac;        
+
+    //     MvLogger::logMotionVector(currFramePoc, xCU, yCU, wCU, hCU, refFramePoc, xMV, yMV, xIntegMV, yIntegMV, xFracMV, yFracMV);
+    //   }
+    // }
+    
 
     CPelBuf refBuf;
     {
@@ -1405,6 +1428,32 @@ void InterPrediction::motionCompensation(PredictionUnit &pu, PelUnitBuf &predBuf
   // makes the code follow different paths if chroma is on or off (in the encoder).
   // Therefore for 4:0:0, "chroma" is not changed to false.
   CHECK(predBufWOBIO && pu.ciipFlag, "the case should not happen!");
+
+  if(MvLogger::isDecoding() && !pu.cu->affine) {
+    PosType xPU = pu.lx(); 
+    PosType yPU = pu.ly();
+    SizeType wPU = pu.lwidth();
+    SizeType hPU = pu.lheight();
+    int currFramePoc = pu.cu->slice->getPOC();
+    
+    if(pu.refIdx[REF_PIC_LIST_0] >= 0) {
+      int refList = 0;
+      int refFramePoc = pu.cu->slice->getRefPic( REF_PIC_LIST_0, pu.refIdx[REF_PIC_LIST_0] )->getPOC();
+      int xMV = pu.mv[REF_PIC_LIST_0].getHor();
+      int yMV = pu.mv[REF_PIC_LIST_0].getVer();
+
+      MvLogger::logMotionVector(currFramePoc, xPU, yPU, wPU, hPU, refList, refFramePoc, xMV, yMV);
+    }
+
+    if(pu.refIdx[REF_PIC_LIST_1] >= 0) {
+      int refList = 1;
+      int refFramePoc = pu.cu->slice->getRefPic( REF_PIC_LIST_1, pu.refIdx[REF_PIC_LIST_1] )->getPOC();
+      int xMV = pu.mv[REF_PIC_LIST_1].getHor();
+      int yMV = pu.mv[REF_PIC_LIST_1].getVer();
+
+      MvLogger::logMotionVector(currFramePoc, xPU, yPU, wPU, hPU, refList, refFramePoc, xMV, yMV);
+    }
+  }
 
   if (!pu.cs->pcv->isEncoder)
   {
