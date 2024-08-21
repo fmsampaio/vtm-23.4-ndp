@@ -1429,7 +1429,7 @@ void InterPrediction::motionCompensation(PredictionUnit &pu, PelUnitBuf &predBuf
   // Therefore for 4:0:0, "chroma" is not changed to false.
   CHECK(predBufWOBIO && pu.ciipFlag, "the case should not happen!");
 
-  if(MvLogger::isDecoding() && !pu.cu->affine) {
+  if(MvLogger::isDecoding() && !pu.cu->affine && !pu.cu->geoFlag) {
     PosType xPU = pu.lx(); 
     PosType yPU = pu.ly();
     SizeType wPU = pu.lwidth();
