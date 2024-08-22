@@ -41,6 +41,8 @@
 #include "DecApp.h"
 #include "program_options_lite.h"
 
+#include "CommonLib/NdpDecodeOptimizer.h"
+
 //! \ingroup DecoderApp
 //! \{
 
@@ -81,6 +83,8 @@ int main(int argc, char* argv[])
 
     return returnCode;
   }
+
+  NdpDecoderOptimizer::openBaseMvLogFile(pcDecApp->mvLogFileName);
 
   // starting time
   double dResult;
