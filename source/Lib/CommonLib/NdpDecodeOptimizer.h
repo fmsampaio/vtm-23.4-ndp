@@ -33,6 +33,9 @@ class NdpDecoderOptimizer {
         static std::map<std::string, std::pair<int, double> > prefFracMap;
         static std::map<std::string, std::pair<int, double> > avgMvMap;
 
+        static long long int countAdjustedMVs;
+        static long long int totalDecodedMVs;
+
     public: 
         static void openBaseMvLogFile(std::string fileName);
         static std::string generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);
@@ -41,4 +44,7 @@ class NdpDecoderOptimizer {
         static std::pair<int, double> calculatePrefFrac(std::list<MvLogData*> list);
         static int getFracPosition(int xFracMV, int yFracMV);
         static std::pair<int, double> calculateAvgMV(std::list<MvLogData*> list);
+        static void modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV);
+        static void logDecoderOptSummary();
+        
 };

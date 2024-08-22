@@ -41,6 +41,8 @@
 #include "UnitTools.h"
 #include "MCTS.h"
 
+#include "NdpDecodeOptimizer.h"
+
 #include <memory.h>
 #include <algorithm>
 
@@ -1405,6 +1407,37 @@ void InterPrediction::motionCompensation(PredictionUnit &pu, PelUnitBuf &predBuf
   // makes the code follow different paths if chroma is on or off (in the encoder).
   // Therefore for 4:0:0, "chroma" is not changed to false.
   CHECK(predBufWOBIO && pu.ciipFlag, "the case should not happen!");
+
+  if(!pu.cu->affine) {
+    PosType xPU = pu.lx(); 
+    PosType yPU = pu.ly();
+    // SizeType wPU = pu.lwidth();
+    SizeType hPU = pu.lheight();
+    int currFramePoc = pu.cu->slice->getPOC();
+
+    if(pu.refIdx[REF_PIC_LIST_0] >= 0) {
+      int refList = 0;
+      int refFramePoc = pu.cu->slice->getRefPic( REF_PIC_LIST_0, pu.refIdx[REF_PIC_LIST_0] )->getPOC();
+      int xMV = pu.mv[REF_PIC_LIST_0].getHor();
+      int yMV = pu.mv[REF_PIC_LIST_0].getVer();
+
+      NdpDecoderOptimizer::modifyMV(currFramePoc, xPU, yPU, hPU, refList, refFramePoc, &xMV, &yMV);  
+
+      pu.mv[REF_PIC_LIST_0].setHor(xMV);   
+      pu.mv[REF_PIC_LIST_0].setVer(yMV);
+    }
+    if(pu.refIdx[REF_PIC_LIST_1] >= 0) {
+      int refList = 1;
+      int refFramePoc = pu.cu->slice->getRefPic( REF_PIC_LIST_1, pu.refIdx[REF_PIC_LIST_1] )->getPOC();
+      int xMV = pu.mv[REF_PIC_LIST_1].getHor();
+      int yMV = pu.mv[REF_PIC_LIST_1].getVer();
+
+      NdpDecoderOptimizer::modifyMV(currFramePoc, xPU, yPU, hPU, refList, refFramePoc, &xMV, &yMV);  
+      
+      pu.mv[REF_PIC_LIST_1].setHor(xMV);   
+      pu.mv[REF_PIC_LIST_1].setVer(yMV);
+    }
+  }
 
   if (!pu.cs->pcv->isEncoder)
   {

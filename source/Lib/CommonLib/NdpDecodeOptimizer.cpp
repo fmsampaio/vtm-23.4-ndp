@@ -5,6 +5,7 @@ std::map<std::string, MvLogData*> NdpDecoderOptimizer::mvLogDataMap;
 std::map<std::string, std::list<MvLogData*> > NdpDecoderOptimizer::mvLogDataMapPerCTULine;
 std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::prefFracMap;
 std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::avgMvMap;
+long long int NdpDecoderOptimizer::countAdjustedMVs, NdpDecoderOptimizer::totalDecodedMVs;
 
 std::string NdpDecoderOptimizer::generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc) {
     std::string key = std::to_string(currFramePoc) + "_" +
@@ -110,7 +111,6 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         // std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "\t| PrefFrac " << prefFrac << "\t| PfHit " << prefFracHit << "\t| AvgMv " << avgMv << "\t| AvHit " << avgMvHit << std::endl;
     }
 
-    fclose(optReportFile);
         
 }
 
@@ -219,5 +219,86 @@ std::pair<int, double> NdpDecoderOptimizer::calculateAvgMV(std::list<MvLogData*>
         double percentInsideInterpWindow = (accumMVsInsideInterpWindow * 1.0) / accumFracPUs;
         return std::pair<int, double>(yAvg, percentInsideInterpWindow);
     }
+
+}
+
+void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV) {
+    int yIntegMV = (*yMV) >> 4;
+    int xFracMV = (*xMV) & 15, yFracMV = (*yMV) & 15;    
+
+    int fracPosition = getFracPosition(xFracMV, yFracMV);
+       
+    std::string ctuLineKey = generateKeyPerCTULine(currFramePoc, yPU, refList);
+
+    if(prefFracMap.find(ctuLineKey) == prefFracMap.end()) {
+        return;
+    }
+
+    if(avgMvMap.find(ctuLineKey) == avgMvMap.end()) {
+        return;
+    }
+    
+    std::pair<int, double> prefFracResult = prefFracMap.at(ctuLineKey);
+    std::pair<int, double> avgMVResult = avgMvMap.at(ctuLineKey);
+
+    bool isFrac = fracPosition != 0;
+
+    int xMVBkp = *xMV;
+    int yMVBkp = *yMV;
+
+    totalDecodedMVs ++;
+    
+    if(prefFracResult.first == -1 || !isFrac)
+        return;
+    
+    if(avgMVResult.first == -6666) 
+        return;
+
+    int yTop = avgMVResult.first;
+    int yBottom = avgMVResult.first + 128;
+
+    bool adjustMV = false;    
+    int yAdjustedMV = 0;
+
+    if(yIntegMV < yTop) {
+        adjustMV = true;
+        yAdjustedMV = yTop;
+    }
+    else {
+        if((yIntegMV + hPU) > yBottom) {
+            adjustMV = true;
+            yAdjustedMV = yBottom - hPU;
+        }
+    }
+
+    // Adjusting integer position to the avg mv of the current CTU Line
+    if(adjustMV) {
+        int yIntegMask = (yAdjustedMV << 4) | yFracMV;
+
+        (*yMV) = yIntegMask;
+    }
+    
+    // Adjusting frac position to the prefFrac of the current CTU Line
+    int xFracMask = (prefFracResult.first >> 2) << 2;
+    int yFracMask = (prefFracResult.first & 0x3) << 2;
+
+    (*xMV) = ((*xMV) & 0xFFFFFFF3) | xFracMask;
+    (*yMV) = ((*yMV) & 0xFFFFFFF3) | yFracMask;
+
+    if((*xMV) != xMVBkp || (*yMV) != yMVBkp) {
+        countAdjustedMVs ++;    
+        
+        // for debug
+        std::cout << "(" << xMVBkp << "," << yMVBkp << ") -> \t (" << (*xMV) << "," << (*yMV) << ") [" << fracPosition << "x" << prefFracResult.first << "] {" << yIntegMV << "x" << avgMVResult.first << "}\n";   
+    }
+
+}
+
+void NdpDecoderOptimizer::logDecoderOptSummary() {
+    double adjustedMvsPercent = (countAdjustedMVs * 1.0) / totalDecodedMVs;
+        
+    fprintf(optReportFile, "adj-mvs-pctg;%.2f\n", adjustedMvsPercent);
+
+    fclose(optReportFile);
 
 }
