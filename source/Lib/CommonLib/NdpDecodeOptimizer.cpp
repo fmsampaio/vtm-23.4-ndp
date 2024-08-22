@@ -92,8 +92,11 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         std::pair<int, double> resultPrefFrac = calculatePrefFrac(it->second);
         prefFracMap.insert({it->first, resultPrefFrac});
 
+        std::pair<int, double> resultAvgMV = calculateAvgMV(it->second);
+        avgMvMap.insert({it->first, resultAvgMV});
+
         // for debug
-        std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "| PrefFrac " << resultPrefFrac.first << " | PfHit " << resultPrefFrac.second << std::endl;
+        std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "\t| PrefFrac " << resultPrefFrac.first << "\t| PfHit " << resultPrefFrac.second << "\t| AvgMv " << resultAvgMV.first << "\t| AvHit " << resultAvgMV.second << std::endl;
     }
         
 }
@@ -157,3 +160,51 @@ std::pair<int, double> NdpDecoderOptimizer::calculatePrefFrac(std::list<MvLogDat
 }
 
 
+std::pair<int, double> NdpDecoderOptimizer::calculateAvgMV(std::list<MvLogData*> list) {
+    int yCount = 0;
+    int accumFracPUs = 0;
+    
+    for(std::list<MvLogData*>::iterator it = list.begin(); it != list.end(); ++ it) {
+        int fracPosition = getFracPosition((*it)->xFracMV, (*it)->yFracMV);
+        bool isFrac = fracPosition != 0;
+        if(isFrac) {
+            accumFracPUs ++;
+            yCount += (*it)->yIntegMV;
+        }
+    }
+
+    
+    bool isNeg = yCount < 0;
+
+    double yAvgDouble = abs(yCount) * 1.0 / accumFracPUs;
+    int yAvg = (isNeg ? -round(yAvgDouble) : round(yAvgDouble));
+    
+    //yAvg = 0; //for debug!
+
+    int yTop = yAvg;
+    int yBottom = yAvg + 128;
+
+    int accumMVsInsideInterpWindow = 0;
+    for(std::list<MvLogData*>::iterator it = list.begin(); it != list.end(); ++ it) {
+        int yIntegMV = (*it)->yIntegMV;
+        SizeType hPU = (*it)->hPU;
+
+        int fracPosition = getFracPosition((*it)->xFracMV, (*it)->yFracMV);
+        bool isFrac = fracPosition != 0;
+
+        if(isFrac) {
+            if(yIntegMV >= yTop && (yIntegMV + hPU) < yBottom) {
+                accumMVsInsideInterpWindow ++;
+            }
+        }
+    }
+
+    if(accumFracPUs == 0) {
+        return std::pair<int, double>(-6666, -1);
+    }
+    else {
+        double percentInsideInterpWindow = (accumMVsInsideInterpWindow * 1.0) / accumFracPUs;
+        return std::pair<int, double>(yAvg, percentInsideInterpWindow);
+    }
+
+}

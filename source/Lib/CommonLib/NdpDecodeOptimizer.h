@@ -40,5 +40,5 @@ class NdpDecoderOptimizer {
         static MvLogData* getMvData(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);   
         static std::pair<int, double> calculatePrefFrac(std::list<MvLogData*> list);
         static int getFracPosition(int xFracMV, int yFracMV);
-        
+        static std::pair<int, double> calculateAvgMV(std::list<MvLogData*> list);
 };
