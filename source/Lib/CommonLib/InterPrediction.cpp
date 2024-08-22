@@ -694,6 +694,15 @@ void InterPrediction::xPredInterBlk(const ComponentID compID, const PredictionUn
   }
   else
   {
+
+    // Felipe: Avoid more than quarter-pixel MVs
+    std::cout << "(" << mv.hor << "," << mv.ver << ") --> ";
+
+    mv.hor = mv.hor & (~ 3);
+    mv.ver = mv.ver & (~ 3);
+
+    std::cout << "(" << mv.hor << "," << mv.ver << ")\n";
+
     int xFrac, yFrac;
     if (isIBC)
     {
