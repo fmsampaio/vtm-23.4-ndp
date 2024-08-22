@@ -27,7 +27,7 @@ class MvLogData {
 
 class NdpDecoderOptimizer {
     private:
-        static FILE *baseMvLogFile, *optMvLogFile;
+        static FILE *baseMvLogFile, *optReportFile;
         static std::map<std::string, MvLogData*> mvLogDataMap;
         static std::map<std::string, std::list<MvLogData*> > mvLogDataMapPerCTULine;
         static std::map<std::string, std::pair<int, double> > prefFracMap;

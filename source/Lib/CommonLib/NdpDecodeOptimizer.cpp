@@ -1,6 +1,6 @@
 #include "NdpDecodeOptimizer.h"
 
-FILE *NdpDecoderOptimizer::baseMvLogFile, *NdpDecoderOptimizer::optMvLogFile;
+FILE *NdpDecoderOptimizer::baseMvLogFile, *NdpDecoderOptimizer::optReportFile;
 std::map<std::string, MvLogData*> NdpDecoderOptimizer::mvLogDataMap;
 std::map<std::string, std::list<MvLogData*> > NdpDecoderOptimizer::mvLogDataMapPerCTULine;
 std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::prefFracMap;
@@ -29,6 +29,8 @@ std::string NdpDecoderOptimizer::generateKeyPerCTULine(int currFramePoc, PosType
 
 void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
     baseMvLogFile = fopen(fileName.c_str(), "r");
+
+    optReportFile = fopen("decoder-opt.log", "w");
 
     int currFramePoc;
     PosType xPU;
@@ -81,6 +83,8 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
 
     }
 
+    fprintf(optReportFile, "ctu-line-id;cus-count;pref-frac;pref-frac-hit;avg-mv;avg-mv-hit\n");
+
     // for debug
     // std::cout << "Num of logged MVs: " << mvLogDataMap.size() << std::endl;
     // std::cout << "Num of logged CTU line keys: " << mvLogDataMapPerCTULine.size() << std::endl;
@@ -95,9 +99,18 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         std::pair<int, double> resultAvgMV = calculateAvgMV(it->second);
         avgMvMap.insert({it->first, resultAvgMV});
 
+        int prefFrac = resultPrefFrac.first;
+        double prefFracHit = resultPrefFrac.second;
+        int avgMv = resultAvgMV.first;
+        double avgMvHit = resultAvgMV.second;
+
+        fprintf(optReportFile, "%s;%d;%d;%.3f;%d;%.3f\n", ctuLineKey.c_str(), cusWithinLine, prefFrac, prefFracHit, avgMv, avgMvHit);
+
         // for debug
-        std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "\t| PrefFrac " << resultPrefFrac.first << "\t| PfHit " << resultPrefFrac.second << "\t| AvgMv " << resultAvgMV.first << "\t| AvHit " << resultAvgMV.second << std::endl;
+        // std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "\t| PrefFrac " << prefFrac << "\t| PfHit " << prefFracHit << "\t| AvgMv " << avgMv << "\t| AvHit " << avgMvHit << std::endl;
     }
+
+    fclose(optReportFile);
         
 }
 
