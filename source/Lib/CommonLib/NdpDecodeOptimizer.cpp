@@ -31,7 +31,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
     baseMvLogFile = fopen(fileName.c_str(), "r");
 
     int currFramePoc;
-    PosType xCU;
+    PosType xPU;
     PosType yPU;
     SizeType wPU;
     SizeType hPU;
@@ -45,7 +45,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
     int yFracMV;
 
     while(!feof(baseMvLogFile)) {
-        int res = fscanf(baseMvLogFile, "%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d\n", &currFramePoc, &xCU, &yPU, &wPU, &hPU, &refList, &refFramePoc, &xMV, &yMV, &xIntegMV, &yIntegMV, &xFracMV, &yFracMV);
+        int res = fscanf(baseMvLogFile, "%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d\n", &currFramePoc, &xPU, &yPU, &wPU, &hPU, &refList, &refFramePoc, &xMV, &yMV, &xIntegMV, &yIntegMV, &xFracMV, &yFracMV);
 
         if(res == 0) {
             break;
@@ -53,7 +53,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         MvLogData* mvData = new MvLogData();
         
         mvData->currFramePoc = currFramePoc;
-        mvData->xPU = xCU;
+        mvData->xPU = xPU;
         mvData->yPU = yPU;
         mvData->wPU = wPU;
         mvData->hPU = hPU;
@@ -66,7 +66,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         mvData->xFracMV = xFracMV;
         mvData->yFracMV = yFracMV;
 
-        std::string key = generateMvLogMapKey(currFramePoc, xCU, yPU, refList, refFramePoc);
+        std::string key = generateMvLogMapKey(currFramePoc, xPU, yPU, refList, refFramePoc);
         mvLogDataMap.insert({key, mvData});
 
         std::string keyPerLine = generateKeyPerCTULine(currFramePoc, yPU, refList);
