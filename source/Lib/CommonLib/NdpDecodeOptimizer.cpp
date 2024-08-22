@@ -31,7 +31,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
     baseMvLogFile = fopen(fileName.c_str(), "r");
 
     int currFramePoc;
-    PosType xPU;
+    PosType xCU;
     PosType yPU;
     SizeType wPU;
     SizeType hPU;
@@ -45,7 +45,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
     int yFracMV;
 
     while(!feof(baseMvLogFile)) {
-        int res = fscanf(baseMvLogFile, "%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d\n", &currFramePoc, &xPU, &yPU, &wPU, &hPU, &refList, &refFramePoc, &xMV, &yMV, &xIntegMV, &yIntegMV, &xFracMV, &yFracMV);
+        int res = fscanf(baseMvLogFile, "%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d\n", &currFramePoc, &xCU, &yPU, &wPU, &hPU, &refList, &refFramePoc, &xMV, &yMV, &xIntegMV, &yIntegMV, &xFracMV, &yFracMV);
 
         if(res == 0) {
             break;
@@ -53,7 +53,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         MvLogData* mvData = new MvLogData();
         
         mvData->currFramePoc = currFramePoc;
-        mvData->xPU = xPU;
+        mvData->xPU = xCU;
         mvData->yPU = yPU;
         mvData->wPU = wPU;
         mvData->hPU = hPU;
@@ -66,7 +66,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         mvData->xFracMV = xFracMV;
         mvData->yFracMV = yFracMV;
 
-        std::string key = generateMvLogMapKey(currFramePoc, xPU, yPU, refList, refFramePoc);
+        std::string key = generateMvLogMapKey(currFramePoc, xCU, yPU, refList, refFramePoc);
         mvLogDataMap.insert({key, mvData});
 
         std::string keyPerLine = generateKeyPerCTULine(currFramePoc, yPU, refList);
@@ -82,14 +82,18 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
     }
 
     // for debug
-    std::cout << "Num of logged MVs: " << mvLogDataMap.size() << std::endl;
-    std::cout << "Num of logged CTU line keys: " << mvLogDataMapPerCTULine.size() << std::endl;
+    // std::cout << "Num of logged MVs: " << mvLogDataMap.size() << std::endl;
+    // std::cout << "Num of logged CTU line keys: " << mvLogDataMapPerCTULine.size() << std::endl;
 
     for(auto it = mvLogDataMapPerCTULine.begin(); it != mvLogDataMapPerCTULine.end(); ++it) {
         std::string ctuLineKey = it->first;
         int cusWithinLine = it->second.size();
 
-        std::cout << "[" << ctuLineKey << "] --> " << cusWithinLine << std::endl;
+        std::pair<int, double> resultPrefFrac = calculatePrefFrac(it->second);
+        prefFracMap.insert({it->first, resultPrefFrac});
+
+        // for debug
+        std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "| PrefFrac " << resultPrefFrac.first << " | PfHit " << resultPrefFrac.second << std::endl;
     }
         
 }
@@ -102,6 +106,53 @@ MvLogData* NdpDecoderOptimizer::getMvData(int currFramePoc, PosType xPU, PosType
     }
     else {
         return NULL;
+    }
+}
+
+int NdpDecoderOptimizer::getFracPosition(int xFracMV, int yFracMV) {
+    int xQuarterMV = xFracMV >> 2;
+    int yQuarterMV = yFracMV >> 2;
+
+    int fracPosition = (xQuarterMV << 2) | yQuarterMV;
+
+    return fracPosition;
+}
+
+
+std::pair<int, double> NdpDecoderOptimizer::calculatePrefFrac(std::list<MvLogData*> list) {
+    int countFracPos[16];
+
+    for (int i = 0; i < 16; i++) {
+        countFracPos[i] = 0;
+    }   
+   
+    for(std::list<MvLogData*>::iterator it = list.begin(); it != list.end(); ++ it) {
+        int fracPosition = getFracPosition((*it)->xFracMV, (*it)->yFracMV);
+
+        // for debug
+        // std::cout << "(" << (*it)->xFracMV << "," << (*it)->yFracMV << ") [" << fracPosition << "]\n";
+
+        countFracPos[fracPosition] += (*it)->wPU * (*it)->hPU;
+    }
+ 
+    int countFracArea = 0;
+    int prefFrac = -1;
+    int maxOcc = -1;
+
+    for (int frac = 1; frac < 16; frac++) {
+        countFracArea += countFracPos[frac];
+        if(countFracPos[frac] > maxOcc) {
+            maxOcc = countFracPos[frac];
+            prefFrac = frac;
+        }
+    }
+
+    if(countFracArea != 0) {
+        double percentFrac = (maxOcc * 1.0) / countFracArea;
+        return std::pair<int, double>(prefFrac, percentFrac);
+    }
+    else {
+        return std::pair<int, double>(-1, -1);
     }
 }
 

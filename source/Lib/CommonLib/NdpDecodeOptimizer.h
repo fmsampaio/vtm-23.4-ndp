@@ -38,4 +38,7 @@ class NdpDecoderOptimizer {
         static std::string generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);
         static std::string generateKeyPerCTULine(int currFramePoc, PosType yPU, int refList);
         static MvLogData* getMvData(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);   
+        static std::pair<int, double> calculatePrefFrac(std::list<MvLogData*> list);
+        static int getFracPosition(int xFracMV, int yFracMV);
+        
 };
