@@ -743,6 +743,9 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
   m_pcRdCost->setDistParam( m_cDistParam, *pcPatternKey, m_filteredBlock[0][0][0], iRefStride, m_lumaClpRng.bd, COMPONENT_Y, 0, 1, m_pcEncCfg->getUseHADME() && bAllowUseOfHadamard );
 
   const Mv* pcMvRefine = (iFrac == 2 ? s_acMvRefineH : s_acMvRefineQ);
+
+  // std::cout << "FRefine: " <<  iFrac << std::endl;
+
 #if GDR_ENABLED
   if (isEncodeGdrClean)
   {
@@ -5130,6 +5133,8 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
 #else
     xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost);
 #endif
+
+
     m_pcRdCost->setCostScale( 0 );
     rcMv <<= 2;
     rcMv  += ( cMvHalf <<= 1 );
@@ -5150,6 +5155,11 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
 #endif
   }
   DTRACE(g_trace_ctx, D_ME, "   MECost<L%d,%d>: %6d (%d)  MV:%d,%d\n", (int)eRefPicList, (int)bBi, ruiCost, ruiBits, rcMv.getHor() << 2, rcMv.getVer() << 2);
+
+  // for debug
+  // int xMvLastTwo = rcMv.getHor() & 0x03;
+  // int yMvLastTwo = rcMv.getVer() & 0x03;
+  // std::cout << "Best MV: (" << rcMv.getHor() << "," << rcMv.getVer() << ") <-> (" << xMvLastTwo << "," << yMvLastTwo << ")" << std::endl;   
 }
 
 void InterSearch::xSetSearchRange(const PredictionUnit &pu, const Mv &cMvPred, const int iSrchRng, SearchRange &sr,
@@ -6140,6 +6150,8 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
 #else
     ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, (!pu.cs->slice->getDisableSATDForRD()));
 #endif
+
+    // std::cout << "BFrac: (" << rcMvQter.getHor() << "," << rcMvQter.getVer() << ")" << std::endl;
   }
 }
 

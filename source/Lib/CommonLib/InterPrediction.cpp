@@ -1419,6 +1419,8 @@ void InterPrediction::motionCompensation(PredictionUnit &pu, PelUnitBuf &predBuf
   // Therefore for 4:0:0, "chroma" is not changed to false.
   CHECK(predBufWOBIO && pu.ciipFlag, "the case should not happen!");
 
+  std::cout << "MC for CU " << pu.lx() << "," << pu.ly() << std::endl;
+
   if (!pu.cs->pcv->isEncoder)
   {
     if (CU::isIBC(*pu.cu))
