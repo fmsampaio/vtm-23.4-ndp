@@ -5,6 +5,8 @@
 #include <iostream>
 #include <cmath>
 
+#include "CommonDef.h"
+
 using PosType  = int32_t;
 using SizeType = uint32_t;
 
@@ -35,9 +37,13 @@ class NdpDecoderOptimizer {
 
         static long long int countAdjustedMVs;
         static long long int totalDecodedMVs;
+        
+        static bool isFracOnly;
 
     public: 
         static void openBaseMvLogFile(std::string fileName);
+        static void setOptMode(int fracOnlyCfg);
+        
         static std::string generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);
         static std::string generateKeyPerCTULine(int currFramePoc, PosType yPU, int refList);
         static MvLogData* getMvData(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);   
@@ -46,5 +52,6 @@ class NdpDecoderOptimizer {
         static std::pair<int, double> calculateAvgMV(std::list<MvLogData*> list);
         static void modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV);
         static void logDecoderOptSummary();
+        
         
 };

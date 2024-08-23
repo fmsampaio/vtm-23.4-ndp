@@ -104,6 +104,7 @@ protected:
 #endif // GDR_LEAK_TEST
 public:
   std::string mvLogFileName;
+  int cfgFracOnly;
   
   DecAppCfg();
   virtual ~DecAppCfg();

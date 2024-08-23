@@ -6,6 +6,7 @@ std::map<std::string, std::list<MvLogData*> > NdpDecoderOptimizer::mvLogDataMapP
 std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::prefFracMap;
 std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::avgMvMap;
 long long int NdpDecoderOptimizer::countAdjustedMVs, NdpDecoderOptimizer::totalDecodedMVs;
+bool NdpDecoderOptimizer::isFracOnly;
 
 std::string NdpDecoderOptimizer::generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc) {
     std::string key = std::to_string(currFramePoc) + "_" +
@@ -84,7 +85,12 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
 
     }
 
-    fprintf(optReportFile, "ctu-line-id;cus-count;pref-frac;pref-frac-hit;avg-mv;avg-mv-hit\n");
+    fprintf(optReportFile, "ctu-line-id;cus-count;pref-frac;pref-frac-hit");
+    if(!isFracOnly) {
+        std::cout << "AAAA " << isFracOnly << std::endl;
+        fprintf(optReportFile, ";avg-mv;avg-mv-hit");
+    }    
+    fprintf(optReportFile, "\n");
 
     // for debug
     // std::cout << "Num of logged MVs: " << mvLogDataMap.size() << std::endl;
@@ -97,21 +103,35 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         std::pair<int, double> resultPrefFrac = calculatePrefFrac(it->second);
         prefFracMap.insert({it->first, resultPrefFrac});
 
-        std::pair<int, double> resultAvgMV = calculateAvgMV(it->second);
-        avgMvMap.insert({it->first, resultAvgMV});
-
         int prefFrac = resultPrefFrac.first;
         double prefFracHit = resultPrefFrac.second;
-        int avgMv = resultAvgMV.first;
-        double avgMvHit = resultAvgMV.second;
 
-        fprintf(optReportFile, "%s;%d;%d;%.3f;%d;%.3f\n", ctuLineKey.c_str(), cusWithinLine, prefFrac, prefFracHit, avgMv, avgMvHit);
+        fprintf(optReportFile, "%s;%d;%d;%.3f", ctuLineKey.c_str(), cusWithinLine, prefFrac, prefFracHit);
+
+        if(!isFracOnly) {
+            std::pair<int, double> resultAvgMV = calculateAvgMV(it->second);
+            avgMvMap.insert({it->first, resultAvgMV});
+
+            int avgMv = resultAvgMV.first;
+            double avgMvHit = resultAvgMV.second;
+
+            fprintf(optReportFile, ";%d;%.3f", avgMv, avgMvHit);
+        }
+
+        fprintf(optReportFile, "\n");
 
         // for debug
         // std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "\t| PrefFrac " << prefFrac << "\t| PfHit " << prefFracHit << "\t| AvgMv " << avgMv << "\t| AvHit " << avgMvHit << std::endl;
     }
 
         
+}
+
+void NdpDecoderOptimizer::setOptMode(int cfgFracOnly) {
+    
+    isFracOnly = cfgFracOnly == 1;
+
+    std::cout << "Frac only mode: " << cfgFracOnly << std::endl;
 }
 
 MvLogData* NdpDecoderOptimizer::getMvData(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc) {
@@ -223,8 +243,8 @@ std::pair<int, double> NdpDecoderOptimizer::calculateAvgMV(std::list<MvLogData*>
 }
 
 void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV) {
-    int yIntegMV = (*yMV) >> 4;
-    int xFracMV = (*xMV) & 15, yFracMV = (*yMV) & 15;    
+    int yIntegMV = (*yMV) >> MV_FRAC_BITS_LUMA;
+    int xFracMV = (*xMV) & MV_FRAC_MASK_LUMA, yFracMV = (*yMV) & MV_FRAC_MASK_LUMA;    
 
     int fracPosition = getFracPosition(xFracMV, yFracMV);
        
@@ -234,12 +254,15 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
         return;
     }
 
-    if(avgMvMap.find(ctuLineKey) == avgMvMap.end()) {
-        return;
+    if(! isFracOnly) {
+        if(avgMvMap.find(ctuLineKey) == avgMvMap.end()) {
+            return;
+        }
     }
     
     std::pair<int, double> prefFracResult = prefFracMap.at(ctuLineKey);
-    std::pair<int, double> avgMVResult = avgMvMap.at(ctuLineKey);
+
+    std::pair<int, double> avgMVResult;
 
     bool isFrac = fracPosition != 0;
 
@@ -250,34 +273,38 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
     
     if(prefFracResult.first == -1 || !isFrac)
         return;
+
+    if(! isFracOnly) {
+        avgMVResult = avgMvMap.at(ctuLineKey);
     
-    if(avgMVResult.first == -6666) 
-        return;
+        if(avgMVResult.first == -6666) 
+            return;
 
-    int yTop = avgMVResult.first;
-    int yBottom = avgMVResult.first + 128;
+        int yTop = avgMVResult.first;
+        int yBottom = avgMVResult.first + 128;
 
-    bool adjustMV = false;    
-    int yAdjustedMV = 0;
+        bool adjustMV = false;    
+        int yAdjustedMV = 0;
 
-    if(yIntegMV < yTop) {
-        adjustMV = true;
-        yAdjustedMV = yTop;
-    }
-    else {
-        if((yIntegMV + hPU) > yBottom) {
+        if(yIntegMV < yTop) {
             adjustMV = true;
-            yAdjustedMV = yBottom - hPU;
+            yAdjustedMV = yTop;
+        }
+        else {
+            if((yIntegMV + hPU) > yBottom) {
+                adjustMV = true;
+                yAdjustedMV = yBottom - hPU;
+            }
+        }
+
+        // Adjusting integer position to the avg mv of the current CTU Line
+        if(adjustMV) {
+            int yIntegMask = (yAdjustedMV << 4) | yFracMV;
+
+            (*yMV) = yIntegMask;
         }
     }
 
-    // Adjusting integer position to the avg mv of the current CTU Line
-    if(adjustMV) {
-        int yIntegMask = (yAdjustedMV << 4) | yFracMV;
-
-        (*yMV) = yIntegMask;
-    }
-    
     // Adjusting frac position to the prefFrac of the current CTU Line
     int xFracMask = (prefFracResult.first >> 2) << 2;
     int yFracMask = (prefFracResult.first & 0x3) << 2;
@@ -289,7 +316,7 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
         countAdjustedMVs ++;    
         
         // for debug
-        std::cout << "(" << xMVBkp << "," << yMVBkp << ") -> \t (" << (*xMV) << "," << (*yMV) << ") [" << fracPosition << "x" << prefFracResult.first << "] {" << yIntegMV << "x" << avgMVResult.first << "}\n";   
+        // std::cout << "(" << xMVBkp << "," << yMVBkp << ") -> \t (" << (*xMV) << "," << (*yMV) << ") [" << fracPosition << "x" << prefFracResult.first << "] {" << yIntegMV << "x" << avgMVResult.first << "}\n";   
     }
 
 }

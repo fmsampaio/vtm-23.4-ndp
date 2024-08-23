@@ -42,6 +42,7 @@
 #include "MCTS.h"
 
 #include "NdpDecodeOptimizer.h"
+#include "MvLogger.h"
 
 #include <memory.h>
 #include <algorithm>
@@ -1408,10 +1409,10 @@ void InterPrediction::motionCompensation(PredictionUnit &pu, PelUnitBuf &predBuf
   // Therefore for 4:0:0, "chroma" is not changed to false.
   CHECK(predBufWOBIO && pu.ciipFlag, "the case should not happen!");
 
-  if(!pu.cu->affine) {
+  if(!pu.cu->affine && MvLogger::isDecoding()) {
     PosType xPU = pu.lx(); 
     PosType yPU = pu.ly();
-    // SizeType wPU = pu.lwidth();
+    SizeType wPU = pu.lwidth();
     SizeType hPU = pu.lheight();
     int currFramePoc = pu.cu->slice->getPOC();
 
@@ -1425,6 +1426,8 @@ void InterPrediction::motionCompensation(PredictionUnit &pu, PelUnitBuf &predBuf
 
       pu.mv[REF_PIC_LIST_0].setHor(xMV);   
       pu.mv[REF_PIC_LIST_0].setVer(yMV);
+
+      MvLogger::logMotionVector(currFramePoc, xPU, yPU, wPU, hPU, refList, refFramePoc, xMV, yMV);
     }
     if(pu.refIdx[REF_PIC_LIST_1] >= 0) {
       int refList = 1;
@@ -1433,9 +1436,11 @@ void InterPrediction::motionCompensation(PredictionUnit &pu, PelUnitBuf &predBuf
       int yMV = pu.mv[REF_PIC_LIST_1].getVer();
 
       NdpDecoderOptimizer::modifyMV(currFramePoc, xPU, yPU, hPU, refList, refFramePoc, &xMV, &yMV);  
-      
+
       pu.mv[REF_PIC_LIST_1].setHor(xMV);   
       pu.mv[REF_PIC_LIST_1].setVer(yMV);
+
+      MvLogger::logMotionVector(currFramePoc, xPU, yPU, wPU, hPU, refList, refFramePoc, xMV, yMV);
     }
   }
 

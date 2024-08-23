@@ -42,6 +42,7 @@
 #include "program_options_lite.h"
 
 #include "CommonLib/NdpDecodeOptimizer.h"
+#include "CommonLib/MvLogger.h"
 
 //! \ingroup DecoderApp
 //! \{
@@ -84,7 +85,9 @@ int main(int argc, char* argv[])
     return returnCode;
   }
 
+  NdpDecoderOptimizer::setOptMode(pcDecApp->cfgFracOnly);
   NdpDecoderOptimizer::openBaseMvLogFile(pcDecApp->mvLogFileName);
+  MvLogger::init();
 
   // starting time
   double dResult;
@@ -119,6 +122,9 @@ int main(int argc, char* argv[])
   printf("\n Total Time: %12.3f sec.\n", dResult);
 
   delete pcDecApp;
+
+  MvLogger::close();
+  NdpDecoderOptimizer::logDecoderOptSummary();
 
   return returnCode;
 }
