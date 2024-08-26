@@ -1960,8 +1960,10 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
     getAndStoreBlockStatistics(cs, ctuArea);
 #endif
 
+    #if ENABLE_TRACING
     // D_NDP_TRACE Here!
     EncoderOptimizerTrace::traceCtuCodingInfo(cs, ctuArea, pos);
+    #endif
 
     pCABACWriter->resetBits();
     pCABACWriter->coding_tree_unit( cs, ctuArea, prevQP, ctuRsAddr, true, true );
