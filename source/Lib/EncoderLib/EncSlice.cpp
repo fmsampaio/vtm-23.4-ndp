@@ -44,6 +44,8 @@
 #include "CommonLib/dtrace_blockstatistics.h"
 #endif
 
+#include "EncoderOptimizerTrace.h"
+
 
 #include <math.h>
 
@@ -1957,6 +1959,11 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
 #if K0149_BLOCK_STATISTICS
     getAndStoreBlockStatistics(cs, ctuArea);
 #endif
+
+    #if ENABLE_TRACING
+    // D_NDP_TRACE Here!
+    EncoderOptimizerTrace::traceCtuCodingInfo(cs, ctuArea, pos);
+    #endif
 
     pCABACWriter->resetBits();
     pCABACWriter->coding_tree_unit( cs, ctuArea, prevQP, ctuRsAddr, true, true );
