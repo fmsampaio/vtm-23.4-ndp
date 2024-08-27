@@ -172,6 +172,14 @@ int EncoderOptimizer::xGetFracPosition(Mv shiftMv) {
     return fracPosition;
 }
 
+int EncoderOptimizer::getFracPosition(Mv mv, MvPrecision precision) {
+    if(precision == MvPrecision::HALF) {
+        mv <<= 1;
+    }
+
+    return xGetFracPosition(mv);
+}
+
 void EncoderOptimizer::xStoreCuMotionData(int currFramePoc, PosType xCU, PosType yCU, SizeType wCU, SizeType hCU, int refList, int refFramePoc, Mv origMv, Mv shiftMv) {
     MotionData *md = new MotionData();
     md->currFramePoc = currFramePoc;

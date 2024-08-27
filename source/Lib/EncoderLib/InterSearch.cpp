@@ -47,6 +47,8 @@
 #include "CommonLib/dtrace_buffer.h"
 #include "CommonLib/MCTS.h"
 
+#include "EncoderOptimizer.h"
+
 #include "EncModeCtrl.h"
 #include "EncLib.h"
 
@@ -773,6 +775,13 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
     cMvTest = pcMvRefine[i];
     cMvTest += rcMvFrac;
 
+    // for debug
+    if(iFrac == 2) {
+      std::cout << "HPel: (" << cMvTest.hor << "," << cMvTest.ver << ") [" << EncoderOptimizer::getFracPosition(cMvTest, MvPrecision::HALF) << "]\n";
+    }
+    else { //iFrac == 1
+      std::cout << "QPel: (" << cMvTest.hor << "," << cMvTest.ver << ") [" << EncoderOptimizer::getFracPosition(cMvTest, MvPrecision::QUARTER) << "]\n";
+    }
 
     m_cDistParam.cur.buf   = piRefPos;
     dist                   = m_cDistParam.distFunc(m_cDistParam);

@@ -1965,7 +1965,9 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
     EncoderOptimizer::traceCtuCodingInfo(cs, ctuArea);
     #endif
     EncoderOptimizer::storeCtuMotionData(cs, ctuArea);
-    EncoderOptimizer::reportMotionData();
+    
+    // for debug
+    // EncoderOptimizer::reportMotionData();
 
     pCABACWriter->resetBits();
     pCABACWriter->coding_tree_unit( cs, ctuArea, prevQP, ctuRsAddr, true, true );

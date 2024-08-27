@@ -22,6 +22,7 @@ class EncoderOptimizer {
 
         static void xStoreCuMotionData(int currFramePoc, PosType xCU, PosType yCU, SizeType wCU, SizeType hCU, int refList, int refFramePoc, Mv origMv, Mv shiftMv);
         static int xGetFracPosition(Mv shiftMv);
+        
 
     public:
         static void traceCtuCodingInfo(const CodingStructure& cs, const UnitArea& ctuArea);
@@ -29,6 +30,8 @@ class EncoderOptimizer {
 
         static std::pair<int, double> calculatePrefFrac(int currFramePoc, PosType yCU, int refList);
         static std::pair<int, double> calculatePrefFrac(std::string ctuLineKey);
+
+        static int getFracPosition(Mv mv, MvPrecision precision);
 
         static void reportMotionData();
 
