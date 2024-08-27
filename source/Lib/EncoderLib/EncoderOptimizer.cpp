@@ -118,6 +118,60 @@ void EncoderOptimizer::storeCtuMotionData(const CodingStructure& cs, const UnitA
     }
 }
 
+
+
+std::pair<int, double> EncoderOptimizer::calculatePrefFrac(int currFramePoc, PosType yCU, int refList) {
+    std::string ctuLineKey = xGenerateCtuLineKey(currFramePoc, yCU, refList);
+
+    return calculatePrefFrac(ctuLineKey);
+}
+
+std::pair<int, double> EncoderOptimizer::calculatePrefFrac(std::string ctuLineKey) {
+
+    if(motionDataMap.find(ctuLineKey) == motionDataMap.end()) {
+        return std::pair<int, double>(-1, -1);
+    }
+
+    int countFracPos[16];
+    for (int i = 0; i < 16; i++) {
+        countFracPos[i] = 0;
+    }  
+
+    std::list<MotionData*> motionDataList = motionDataMap.at(ctuLineKey);
+    for(std::list<MotionData*>::iterator it = motionDataList.begin(); it != motionDataList.end(); ++ it) {
+        int fracPos = (*it)->fracPos;
+        countFracPos[fracPos] += (*it)->wCU * (*it)->hCU;
+    }  
+
+    int countFracArea = 0;
+    int prefFrac = -1;
+    int maxOcc = -1;
+
+    for (int frac = 1; frac < 16; frac++) {
+        countFracArea += countFracPos[frac];
+        if(countFracPos[frac] > maxOcc) {
+            maxOcc = countFracPos[frac];
+            prefFrac = frac;
+        }
+    }
+    if(countFracArea != 0) {
+        double percentFrac = (maxOcc * 1.0) / countFracArea;
+        return std::pair<int, double>(prefFrac, percentFrac);
+    }
+    else {
+        return std::pair<int, double>(-1, -1);
+    }  
+}
+
+int EncoderOptimizer::xGetFracPosition(Mv shiftMv) {
+    int xQuarterMV = shiftMv.hor & 0x3;
+    int yQuarterMV = shiftMv.ver & 0x3;
+
+    int fracPosition = (xQuarterMV << 2) | yQuarterMV;
+
+    return fracPosition;
+}
+
 void EncoderOptimizer::xStoreCuMotionData(int currFramePoc, PosType xCU, PosType yCU, SizeType wCU, SizeType hCU, int refList, int refFramePoc, Mv origMv, Mv shiftMv) {
     MotionData *md = new MotionData();
     md->currFramePoc = currFramePoc;
@@ -129,6 +183,7 @@ void EncoderOptimizer::xStoreCuMotionData(int currFramePoc, PosType xCU, PosType
     md->refFramePoc = refFramePoc;
     md->origMv = origMv;
     md->shiftMv = shiftMv;
+    md->fracPos = xGetFracPosition(shiftMv);
 
     std::string ctuLineKey = xGenerateCtuLineKey(currFramePoc, yCU, refList);
     if(motionDataMap.find(ctuLineKey) != motionDataMap.end()) {
@@ -142,11 +197,15 @@ void EncoderOptimizer::xStoreCuMotionData(int currFramePoc, PosType xCU, PosType
 }
 
 void EncoderOptimizer::reportMotionData() {
-    std::cout << "####REPORT####\n";
+    std::cout << "#### REPORT ####\n";
     for(auto it = motionDataMap.begin(); it != motionDataMap.end(); ++it) {
         std::string ctuLineKey = it->first;
         int cusWithinLine = it->second.size();
 
-        std::cout << ctuLineKey << ": " << cusWithinLine << std::endl;
+        std::pair<int, double> resultPrefFrac = calculatePrefFrac(ctuLineKey);
+        int prefFrac = resultPrefFrac.first;
+        int prefFracHit = (int) (resultPrefFrac.second * 100.0);
+
+        std::cout << ctuLineKey << ": " << cusWithinLine  << " | PrefFrac " << prefFrac << "[" << prefFracHit << "]" << std::endl;
     }
 }
