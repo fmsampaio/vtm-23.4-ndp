@@ -712,6 +712,13 @@ void InterPrediction::xPredInterBlk(const ComponentID compID, const PredictionUn
     }
 
     if(isLuma(compID)) {
+
+      const int nShift = MV_FRACTIONAL_BITS_DIFF;
+      const int nOffset = 1 << (nShift - 1);
+
+      int xMVTrace = mv.hor >= 0 ? (mv.hor + nOffset) >> nShift : -((-mv.hor + nOffset) >> nShift);
+      int yMVTrace = mv.ver >= 0 ? (mv.ver + nOffset) >> nShift : -((-mv.ver + nOffset) >> nShift);
+
       // Debug-Frac-MC
       std::cout << "Frames: (C) " << pu.cu->slice->getPOC() << " (R) " << refPic->getPOC() << "\n";
       std::cout << "CU: (" << pu.lx() << "," << pu.ly() << ") [" << pu.lwidth() << "x" << pu.lheight() << "]\n";
@@ -719,6 +726,7 @@ void InterPrediction::xPredInterBlk(const ComponentID compID, const PredictionUn
       std::cout << "Shifts: (" << shiftHor << "," << shiftVer << ")\n";
       std::cout << "Integ MV: (" << (mv.getHor() >> shiftHor) << "," << (mv.getVer() >> shiftVer) << ")\n";
       std::cout << "Frac MV: (" << xFrac << "," << yFrac << ")\n";
+      std::cout << "Trace MV:  (" << xMVTrace << "," << yMVTrace << ")\n";
     }
 
 
