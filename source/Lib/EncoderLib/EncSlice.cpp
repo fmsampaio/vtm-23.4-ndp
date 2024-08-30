@@ -1965,6 +1965,11 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
     EncoderOptimizer::traceCtuCodingInfo(cs, ctuArea);
     #endif
     EncoderOptimizer::storeCtuMotionData(cs, ctuArea);
+
+    // if(EncoderOptimizer::isFirstCtuInLine(ctuArea)) {
+      EncoderOptimizer::updatePrefFracMap();
+      EncoderOptimizer::reportMotionData(ctuArea);
+    // }
     
     // for debug
     // EncoderOptimizer::reportMotionData();

@@ -1,6 +1,17 @@
 #include "EncoderOptimizer.h"
 
 std::map<std::string, std::list<MotionData*> > EncoderOptimizer::motionDataMap;
+std::map<std::string, std::pair<int, double> > EncoderOptimizer::prefFracMap;
+
+RefPicList EncoderOptimizer::currRefList;
+PosType EncoderOptimizer::currYCu;  
+int EncoderOptimizer::currFramePocStatic;
+
+static const int HALF_POS[16] = {0, 0, 1, 1, 0, 0, 1, 1, 2, 2, 3, 3, 2, 2, 3, 3};
+
+static const int QUARTER_POS[16] = {0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 0, 1, 2, 3, 2, 3};
+
+static int PREF_FRAC_GLOBAL = 11;
 
 void EncoderOptimizer::traceCtuCodingInfo(const CodingStructure& cs, const UnitArea& ctuArea) {
     
@@ -38,12 +49,13 @@ void EncoderOptimizer::traceCtuCodingInfo(const CodingStructure& cs, const UnitA
                         Mv mv;
                         mv.hor = mvOrig.hor >= 0 ? (mvOrig.hor + nOffset) >> nShift : -((-mvOrig.hor + nOffset) >> nShift);
                         mv.ver = mvOrig.ver >= 0 ? (mvOrig.ver + nOffset) >> nShift : -((-mvOrig.ver + nOffset) >> nShift);
-                        DTRACE( g_trace_ctx, D_NDP_TRACE, "L0: Ref. %2d (%3d, %3d) (%3d, %3d)\n",
+                        DTRACE( g_trace_ctx, D_NDP_TRACE, "L0: Ref. %2d (%3d, %3d) (%3d, %3d) [%2d]\n",
                             refFramePoc,
                             mvOrig.getHor(),
                             mvOrig.getVer(),
                             mv.getHor(),
-                            mv.getVer()
+                            mv.getVer(),
+                            xGetFracPosition(mv)
                         );
                     }
                     if (pu.interDir != 1) {
@@ -52,12 +64,13 @@ void EncoderOptimizer::traceCtuCodingInfo(const CodingStructure& cs, const UnitA
                         Mv mv;
                         mv.hor = mvOrig.hor >= 0 ? (mvOrig.hor + nOffset) >> nShift : -((-mvOrig.hor + nOffset) >> nShift);
                         mv.ver = mvOrig.ver >= 0 ? (mvOrig.ver + nOffset) >> nShift : -((-mvOrig.ver + nOffset) >> nShift);
-                        DTRACE( g_trace_ctx, D_NDP_TRACE, "L1: Ref. %2d (%3d, %3d) (%3d, %3d)\n",
+                        DTRACE( g_trace_ctx, D_NDP_TRACE, "L1: Ref. %2d (%3d, %3d) (%3d, %3d) [%2d]\n",
                             refFramePoc,
                             mvOrig.getHor(),
                             mvOrig.getVer(),
                             mv.getHor(),
-                            mv.getVer()
+                            mv.getVer(),
+                            xGetFracPosition(mv)
                         );
                     }
                 }
@@ -118,15 +131,20 @@ void EncoderOptimizer::storeCtuMotionData(const CodingStructure& cs, const UnitA
     }
 }
 
+std::pair<int, double> EncoderOptimizer::getPrefFrac() {
+    return std::pair<int, double>(PREF_FRAC_GLOBAL, 1.0);
+    
+    /*std::string ctuLineKey = xGenerateCtuLineKey(currFramePocStatic, currYCu, currRefList);
 
-
-std::pair<int, double> EncoderOptimizer::calculatePrefFrac(int currFramePoc, PosType yCU, int refList) {
-    std::string ctuLineKey = xGenerateCtuLineKey(currFramePoc, yCU, refList);
-
-    return calculatePrefFrac(ctuLineKey);
+    if(prefFracMap.find(ctuLineKey) == prefFracMap.end()) {
+        return std::pair<int, double>(-1, -1);
+    }
+    
+    return prefFracMap.at(ctuLineKey);
+    */
 }
 
-std::pair<int, double> EncoderOptimizer::calculatePrefFrac(std::string ctuLineKey) {
+std::pair<int, double> EncoderOptimizer::xCalculatePrefFrac(std::string ctuLineKey) {
 
     if(motionDataMap.find(ctuLineKey) == motionDataMap.end()) {
         return std::pair<int, double>(-1, -1);
@@ -204,16 +222,62 @@ void EncoderOptimizer::xStoreCuMotionData(int currFramePoc, PosType xCU, PosType
     } 
 }
 
-void EncoderOptimizer::reportMotionData() {
+void EncoderOptimizer::updatePrefFracMap() {
+    prefFracMap.clear();
+    for(auto it = motionDataMap.begin(); it != motionDataMap.end(); ++it) {
+        std::string ctuLineKey = it->first;        
+        std::pair<int, double> resultPrefFrac = xCalculatePrefFrac(ctuLineKey);
+
+        prefFracMap.insert({ctuLineKey, resultPrefFrac});
+    }
+}
+
+void EncoderOptimizer::reportMotionData(UnitArea ctuArea) {
     std::cout << "#### REPORT ####\n";
+    std::cout << "CTU Line: " << (ctuArea.Y().y / 128) << std::endl;
     for(auto it = motionDataMap.begin(); it != motionDataMap.end(); ++it) {
         std::string ctuLineKey = it->first;
         int cusWithinLine = it->second.size();
 
-        std::pair<int, double> resultPrefFrac = calculatePrefFrac(ctuLineKey);
+        std::pair<int, double> resultPrefFrac = prefFracMap.at(ctuLineKey);
         int prefFrac = resultPrefFrac.first;
         int prefFracHit = (int) (resultPrefFrac.second * 100.0);
 
-        std::cout << ctuLineKey << ": " << cusWithinLine  << " | PrefFrac " << prefFrac << "[" << prefFracHit << "]" << std::endl;
+        std::cout << ctuLineKey << ": " << cusWithinLine  << " | PrefFrac " << prefFrac << " [" << prefFracHit << "]" << std::endl;
     }
+}
+
+bool EncoderOptimizer::isFirstCtuInLine(UnitArea ctuArea) {
+    return ctuArea.Y().x == 0;
+}
+
+bool EncoderOptimizer::isHalfPel(int fracPos) {
+    return fracPos == 2 || fracPos == 8 || fracPos == 10;
+}
+
+bool EncoderOptimizer::isQuarterPel(int fracPos) {
+    return fracPos != 0 && fracPos != 2 && fracPos != 8 && fracPos != 10;
+}
+
+int EncoderOptimizer::getHalfPosition(int fracPos) {
+    if(fracPos == -1)
+        return -1;
+    return HALF_POS[fracPos];
+}
+
+int EncoderOptimizer::getQuarterPosition(int fracPos) {
+    if(fracPos == -1)
+        return -1;
+    return QUARTER_POS[fracPos];
+}
+
+Mv EncoderOptimizer::shiftMvFromInternalToQuarter(Mv &origMv) {
+    const int nShift = MV_FRACTIONAL_BITS_DIFF;
+    const int nOffset = 1 << (nShift - 1);
+
+    Mv shiftMv;
+    shiftMv.hor = origMv.hor >= 0 ? (origMv.hor + nOffset) >> nShift : -((-origMv.hor + nOffset) >> nShift);
+    shiftMv.ver = origMv.ver >= 0 ? (origMv.ver + nOffset) >> nShift : -((-origMv.ver + nOffset) >> nShift);
+
+    return shiftMv;
 }
