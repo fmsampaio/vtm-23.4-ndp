@@ -309,11 +309,11 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
     int xFracMask = (prefFracResult.first >> 2) << 2;
     int yFracMask = (prefFracResult.first & 0x3) << 2;
 
-    (*xMV) = ((*xMV) & 0xFFFFFFF3) | xFracMask;
-    (*yMV) = ((*yMV) & 0xFFFFFFF3) | yFracMask;
+    (*xMV) = ((*xMV) & 0xFFFFFFF0) | xFracMask;  // Zeroing last two bits (signaling)
+    (*yMV) = ((*yMV) & 0xFFFFFFF0) | yFracMask;  // Zeroing last two bits (signaling)
 
     if((*xMV) != xMVBkp || (*yMV) != yMVBkp) {
-        countAdjustedMVs ++;    
+        countAdjustedMVs ++;
         
         // for debug
         // std::cout << "(" << xMVBkp << "," << yMVBkp << ") -> \t (" << (*xMV) << "," << (*yMV) << ") [" << fracPosition << "x" << prefFracResult.first << "] {" << yIntegMV << "x" << avgMVResult.first << "}\n";   
