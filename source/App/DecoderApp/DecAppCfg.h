@@ -105,6 +105,7 @@ protected:
 public:
   std::string mvLogFileName;
   int cfgFracOnly;
+  int frameWidth, frameHeight;
   
   DecAppCfg();
   virtual ~DecAppCfg();

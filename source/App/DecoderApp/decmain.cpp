@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
   }
 
   NdpDecoderOptimizer::setOptMode(pcDecApp->cfgFracOnly);
-  NdpDecoderOptimizer::openBaseMvLogFile(pcDecApp->mvLogFileName);
+  NdpDecoderOptimizer::openBaseMvLogFile(pcDecApp->mvLogFileName, pcDecApp->frameWidth, pcDecApp->frameHeight);
   MvLogger::init();
 
   // starting time

@@ -7,6 +7,7 @@ std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::prefFracMap;
 std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::avgMvMap;
 long long int NdpDecoderOptimizer::countAdjustedMVs, NdpDecoderOptimizer::totalDecodedMVs;
 bool NdpDecoderOptimizer::isFracOnly;
+int NdpDecoderOptimizer::frameWidth, NdpDecoderOptimizer::frameHeight;
 
 std::string NdpDecoderOptimizer::generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc) {
     std::string key = std::to_string(currFramePoc) + "_" +
@@ -18,8 +19,19 @@ std::string NdpDecoderOptimizer::generateMvLogMapKey(int currFramePoc, PosType x
     return key;
 }
 
-std::string NdpDecoderOptimizer::generateKeyPerCTULine(int currFramePoc, PosType yPU, int refList) {
-    int ctuLine = yPU / 128;
+std::string NdpDecoderOptimizer::generateKeyPerCTULine(int currFramePoc, PosType xPU, PosType yPU, int refList) {
+
+    int ctuLine = 0;
+    if(frameWidth == 3840 || frameWidth == 4096) {
+        ctuLine = (yPU / 128) * 2 + (xPU / (frameWidth / 2));
+    }
+    else {
+        ctuLine = yPU / 128;
+    }
+
+    // for debug
+    // std::cout << "(" << xPU << "," << yPU << ") --> " << ctuLine << std::endl;
+    
 
     std::string key = std::to_string(currFramePoc) + "_" +
                           std::to_string(ctuLine) + "_" +
@@ -29,8 +41,11 @@ std::string NdpDecoderOptimizer::generateKeyPerCTULine(int currFramePoc, PosType
 }
 
 
-void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
+void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName, int width, int height) {
     baseMvLogFile = fopen(fileName.c_str(), "r");
+
+    frameWidth = width;
+    frameHeight = height;
 
     optReportFile = fopen("decoder-opt.log", "w");
 
@@ -73,7 +88,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
         std::string key = generateMvLogMapKey(currFramePoc, xPU, yPU, refList, refFramePoc);
         mvLogDataMap.insert({key, mvData});
 
-        std::string keyPerLine = generateKeyPerCTULine(currFramePoc, yPU, refList);
+        std::string keyPerLine = generateKeyPerCTULine(currFramePoc, xPU, yPU, refList);
         if(mvLogDataMapPerCTULine.find(keyPerLine) != mvLogDataMapPerCTULine.end()) {
             mvLogDataMapPerCTULine.at(keyPerLine).push_back(mvData);
         }
@@ -87,7 +102,7 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
 
     fprintf(optReportFile, "ctu-line-id;cus-count;pref-frac;pref-frac-hit");
     if(!isFracOnly) {
-        std::cout << "AAAA " << isFracOnly << std::endl;
+        // std::cout << "AAAA " << isFracOnly << std::endl;
         fprintf(optReportFile, ";avg-mv;avg-mv-hit");
     }    
     fprintf(optReportFile, "\n");
@@ -108,6 +123,9 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
 
         fprintf(optReportFile, "%s;%d;%d;%.3f", ctuLineKey.c_str(), cusWithinLine, prefFrac, prefFracHit);
 
+        // for debug
+        // std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "\t| PrefFrac " << prefFrac << "\t| PfHit " << prefFracHit; 
+
         if(!isFracOnly) {
             std::pair<int, double> resultAvgMV = calculateAvgMV(it->second);
             avgMvMap.insert({it->first, resultAvgMV});
@@ -116,12 +134,17 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName) {
             double avgMvHit = resultAvgMV.second;
 
             fprintf(optReportFile, ";%d;%.3f", avgMv, avgMvHit);
+
+            // for debug
+            // std::cout << "\t| AvgMv " << avgMv << "\t| AvHit " << avgMvHit;
         }
 
         fprintf(optReportFile, "\n");
 
         // for debug
-        // std::cout << "[" << ctuLineKey << "] --> CUs " << cusWithinLine << "\t| PrefFrac " << prefFrac << "\t| PfHit " << prefFracHit << "\t| AvgMv " << avgMv << "\t| AvHit " << avgMvHit << std::endl;
+        // std::cout << std::endl;
+
+        
     }
 
         
@@ -131,7 +154,7 @@ void NdpDecoderOptimizer::setOptMode(int cfgFracOnly) {
     
     isFracOnly = cfgFracOnly == 1;
 
-    std::cout << "Frac only mode: " << cfgFracOnly << std::endl;
+    // std::cout << "Frac only mode: " << cfgFracOnly << std::endl;
 }
 
 MvLogData* NdpDecoderOptimizer::getMvData(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc) {
@@ -244,11 +267,11 @@ std::pair<int, double> NdpDecoderOptimizer::calculateAvgMV(std::list<MvLogData*>
 
 void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV) {
     int yIntegMV = (*yMV) >> MV_FRAC_BITS_LUMA;
-    int xFracMV = (*xMV) & MV_FRAC_MASK_LUMA, yFracMV = (*yMV) & MV_FRAC_MASK_LUMA;    
+    int xFracMV = (*xMV) & MV_FRAC_MASK_LUMA, yFracMV = (*yMV) & MV_FRAC_MASK_LUMA; 
 
     int fracPosition = getFracPosition(xFracMV, yFracMV);
        
-    std::string ctuLineKey = generateKeyPerCTULine(currFramePoc, yPU, refList);
+    std::string ctuLineKey = generateKeyPerCTULine(currFramePoc, xPU, yPU, refList);
 
     if(prefFracMap.find(ctuLineKey) == prefFracMap.end()) {
         return;
@@ -266,8 +289,8 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
 
     bool isFrac = fracPosition != 0;
 
-    int xMVBkp = *xMV;
-    int yMVBkp = *yMV;
+    int xMVBkp = *xMV & (~ 0x3); //zeroing 2 LSB (signaling) of MV bkp
+    int yMVBkp = *yMV & (~ 0x3); //zeroing 2 LSB (signaling) of MV bkp
 
     totalDecodedMVs ++;
     
