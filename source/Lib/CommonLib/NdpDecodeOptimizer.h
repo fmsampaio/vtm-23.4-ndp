@@ -29,6 +29,8 @@ class MvLogData {
 
 class NdpDecoderOptimizer {
     private:
+        static int fracInterpDependencies[16][2][3];
+
         static FILE *baseMvLogFile, *optReportFile;
         static std::map<std::string, MvLogData*> mvLogDataMap;
         static std::map<std::string, std::list<MvLogData*> > mvLogDataMapPerCTULine;
@@ -54,6 +56,8 @@ class NdpDecoderOptimizer {
         static std::pair<int, double> calculateAvgMV(std::list<MvLogData*> list);
         static void modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV);
         static void logDecoderOptSummary();
+
+        static int fracPosToBeAdjusted(int fracPos, int prefFrac);
         
         
 };

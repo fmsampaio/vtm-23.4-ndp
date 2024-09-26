@@ -9,6 +9,26 @@ long long int NdpDecoderOptimizer::countAdjustedMVs, NdpDecoderOptimizer::totalD
 bool NdpDecoderOptimizer::isFracOnly;
 int NdpDecoderOptimizer::frameWidth, NdpDecoderOptimizer::frameHeight;
 
+int NdpDecoderOptimizer::fracInterpDependencies[16][2][3] = {
+    { {-1, -1, -1} , {-1, -1, -1} }, //0
+    { { 2, -1, -1} , {-1, -1, -1} }, //1
+    { {-1, -1, -1} , {-1, -1, -1} }, //2
+    { { 2, -1, -1} , {-1, -1, -1} }, //3
+    { { 8, -1, -1} , {-1, -1, -1} }, //4
+    { { 8,  4,  6} , { 2,  1,  9} }, //5
+    { { 2, 10, -1} , {-1, -1, -1} }, //6
+    { { 8,  4,  6} , { 2,  3, 11} }, //7
+    { {-1, -1, -1} , {-1, -1, -1} }, //8
+    { { 8, 10, -1} , {-1, -1, -1} }, //9
+    { { 8, -1, -1} , { 2, -1, -1} }, //10
+    { { 8, 10, -1} , {-1, -1, -1} }, //11
+    { { 8, -1, -1} , {-1, -1, -1} }, //12
+    { { 8, 12, 14} , { 2,  1,  9} }, //13
+    { { 2, 10, -1} , {-1, -1, -1} }, //14
+    { { 8, 12, 14} , { 2,  3, 11} }   //15
+};
+
+
 std::string NdpDecoderOptimizer::generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc) {
     std::string key = std::to_string(currFramePoc) + "_" +
                           std::to_string(xPU) + "_" +
@@ -265,6 +285,28 @@ std::pair<int, double> NdpDecoderOptimizer::calculateAvgMV(std::list<MvLogData*>
 
 }
 
+int NdpDecoderOptimizer::fracPosToBeAdjusted(int fracPos, int prefFrac) {
+    // for debug
+    // std::cout << "FRAC: " << fracPos << " --> " << prefFrac << " ==> ";
+
+    if(fracPos == prefFrac) {
+        // std::cout << "PrefFracHit" << std::endl;
+        return fracPos;
+    }
+    else {       
+        for (int i = 0; i < 3; i++) {
+            if(fracPos == fracInterpDependencies[prefFrac][0][i]) {
+                // std::cout << "PrefFracDependHit" << std::endl;
+                return fracPos;
+            }
+        }      
+    }
+
+    // std::cout << "PrefFracMiss" << std::endl;
+    return prefFrac;
+    
+}
+
 void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV) {
     int yIntegMV = (*yMV) >> MV_FRAC_BITS_LUMA;
     int xFracMV = (*xMV) & MV_FRAC_MASK_LUMA, yFracMV = (*yMV) & MV_FRAC_MASK_LUMA; 
@@ -328,9 +370,12 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
         }
     }
 
+    int fracPosAdjusted = fracPosToBeAdjusted(fracPosition, prefFracResult.first);
+
+
     // Adjusting frac position to the prefFrac of the current CTU Line
-    int xFracMask = (prefFracResult.first >> 2) << 2;
-    int yFracMask = (prefFracResult.first & 0x3) << 2;
+    int xFracMask = (fracPosAdjusted >> 2) << 2;
+    int yFracMask = (fracPosAdjusted & 0x3) << 2;
 
     (*xMV) = ((*xMV) & 0xFFFFFFF0) | xFracMask;  // Zeroing last two bits (signaling)
     (*yMV) = ((*yMV) & 0xFFFFFFF0) | yFracMask;  // Zeroing last two bits (signaling)
