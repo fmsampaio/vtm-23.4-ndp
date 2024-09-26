@@ -30,11 +30,12 @@ class MvLogData {
 class NdpDecoderOptimizer {
     private:
         static int fracInterpDependencies[16][2][3];
+        static int INTERP_WINDOW_SIZE;
 
         static FILE *baseMvLogFile, *optReportFile;
         static std::map<std::string, MvLogData*> mvLogDataMap;
         static std::map<std::string, std::list<MvLogData*> > mvLogDataMapPerCTULine;
-        static std::map<std::string, std::pair<int, double> > prefFracMap;
+        static std::map<std::string, std::pair<std::pair<int, int>, double> > prefFracMap;
         static std::map<std::string, std::pair<int, double> > avgMvMap;
 
         static long long int countAdjustedMVs;
@@ -51,13 +52,13 @@ class NdpDecoderOptimizer {
         static std::string generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);
         static std::string generateKeyPerCTULine(int currFramePoc, PosType xPU, PosType yPU, int refList);
         static MvLogData* getMvData(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);   
-        static std::pair<int, double> calculatePrefFrac(std::list<MvLogData*> list);
+        static std::pair<std::pair<int, int>, double> calculatePrefFrac(std::list<MvLogData*> list);
         static int getFracPosition(int xFracMV, int yFracMV);
         static std::pair<int, double> calculateAvgMV(std::list<MvLogData*> list);
         static void modifyMV(int currFramePoc, PosType xPU, PosType yPU, SizeType hPU, int refList, int refFramePoc, int* xMV, int* yMV);
         static void logDecoderOptSummary();
 
-        static int fracPosToBeAdjusted(int fracPos, int prefFrac);
+        static int fracPosToBeAdjusted(double prefFracHit, int fracPos, int prefFrac, int prefHalfFrac);
         
         
 };

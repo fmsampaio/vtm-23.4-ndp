@@ -3,11 +3,13 @@
 FILE *NdpDecoderOptimizer::baseMvLogFile, *NdpDecoderOptimizer::optReportFile;
 std::map<std::string, MvLogData*> NdpDecoderOptimizer::mvLogDataMap;
 std::map<std::string, std::list<MvLogData*> > NdpDecoderOptimizer::mvLogDataMapPerCTULine;
-std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::prefFracMap;
+std::map<std::string, std::pair<std::pair<int, int>, double> > NdpDecoderOptimizer::prefFracMap;
 std::map<std::string, std::pair<int, double> > NdpDecoderOptimizer::avgMvMap;
 long long int NdpDecoderOptimizer::countAdjustedMVs, NdpDecoderOptimizer::totalDecodedMVs;
 bool NdpDecoderOptimizer::isFracOnly;
 int NdpDecoderOptimizer::frameWidth, NdpDecoderOptimizer::frameHeight;
+
+double GLOBAL_TH = 0.0;
 
 int NdpDecoderOptimizer::fracInterpDependencies[16][2][3] = {
     { {-1, -1, -1} , {-1, -1, -1} }, //0
@@ -27,6 +29,8 @@ int NdpDecoderOptimizer::fracInterpDependencies[16][2][3] = {
     { { 2, 10, -1} , {-1, -1, -1} }, //14
     { { 8, 12, 14} , { 2,  3, 11} }   //15
 };
+
+int NdpDecoderOptimizer::INTERP_WINDOW_SIZE = 2048 * 128;
 
 
 std::string NdpDecoderOptimizer::generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc) {
@@ -135,10 +139,10 @@ void NdpDecoderOptimizer::openBaseMvLogFile(std::string fileName, int width, int
         std::string ctuLineKey = it->first;
         int cusWithinLine = it->second.size();
 
-        std::pair<int, double> resultPrefFrac = calculatePrefFrac(it->second);
+        std::pair<std::pair<int, int>, double> resultPrefFrac = calculatePrefFrac(it->second);
         prefFracMap.insert({it->first, resultPrefFrac});
 
-        int prefFrac = resultPrefFrac.first;
+        int prefFrac = resultPrefFrac.first.first;
         double prefFracHit = resultPrefFrac.second;
 
         fprintf(optReportFile, "%s;%d;%d;%.3f", ctuLineKey.c_str(), cusWithinLine, prefFrac, prefFracHit);
@@ -198,7 +202,7 @@ int NdpDecoderOptimizer::getFracPosition(int xFracMV, int yFracMV) {
 }
 
 
-std::pair<int, double> NdpDecoderOptimizer::calculatePrefFrac(std::list<MvLogData*> list) {
+std::pair<std::pair<int, int>, double> NdpDecoderOptimizer::calculatePrefFrac(std::list<MvLogData*> list) {
     int countFracPos[16];
 
     for (int i = 0; i < 16; i++) {
@@ -227,11 +231,30 @@ std::pair<int, double> NdpDecoderOptimizer::calculatePrefFrac(std::list<MvLogDat
     }
 
     if(countFracArea != 0) {
-        double percentFrac = (maxOcc * 1.0) / countFracArea;
-        return std::pair<int, double>(prefFrac, percentFrac);
+        // double percentFrac = (maxOcc * 1.0) / countFracArea;
+        int totalPrefFracOcc = maxOcc;
+
+        int prefHalfFrac = countFracPos[2] >=  countFracPos[8] ? countFracPos[2] : countFracPos[8];
+
+        for (int i = 0; i < 3; i++) {
+            int fracDepList = 0;
+            
+            if(prefFrac == 5 || prefFrac == 7 || prefFrac == 9 || prefFrac == 11 ) {
+                fracDepList = prefHalfFrac == 8 ? 0 : 1;
+            }
+
+            int fracDep = fracInterpDependencies[prefFrac][fracDepList][i];
+            if(fracDep != -1) {
+                
+                totalPrefFracOcc += countFracPos[fracDep];
+            }
+        }
+
+        double percentFrac = (totalPrefFracOcc * 1.0) / INTERP_WINDOW_SIZE;
+        return std::pair<std::pair<int, int>, double>(std::pair<int, int>(prefFrac, prefHalfFrac), percentFrac);
     }
     else {
-        return std::pair<int, double>(-1, -1);
+        return std::pair<std::pair<int, int>, double>(std::pair<int, int>(-1, -1), -1);
     }
 }
 
@@ -285,25 +308,35 @@ std::pair<int, double> NdpDecoderOptimizer::calculateAvgMV(std::list<MvLogData*>
 
 }
 
-int NdpDecoderOptimizer::fracPosToBeAdjusted(int fracPos, int prefFrac) {
+int NdpDecoderOptimizer::fracPosToBeAdjusted(double prefFracHit, int fracPos, int prefFrac, int prefHalfFrac) {
     // for debug
-    // std::cout << "FRAC: " << fracPos << " --> " << prefFrac << " ==> ";
+    std::cout << "FRAC: (" << prefFracHit << ") " << fracPos << " --> " << prefFrac << " ==> ";
+
+    if(prefFracHit < GLOBAL_TH) {  // Threshold to disable MVs adjustments according to prefFracHit
+        std::cout << "ThSkip" << std::endl;
+        return fracPos; // no adjusts
+    }
 
     if(fracPos == prefFrac) {
-        // std::cout << "PrefFracHit" << std::endl;
-        return fracPos;
-    }
-    else {       
-        for (int i = 0; i < 3; i++) {
-            if(fracPos == fracInterpDependencies[prefFrac][0][i]) {
-                // std::cout << "PrefFracDependHit" << std::endl;
-                return fracPos;
-            }
-        }      
+        std::cout << "PrefFracHit" << std::endl;
+        return fracPos; // no adjusts
+    }   
+
+    int fracDepList = 0;
+        
+    if(prefFrac == 5 || prefFrac == 7 || prefFrac == 9 || prefFrac == 11 ) {
+        fracDepList = prefHalfFrac == 8 ? 0 : 1;
     }
 
-    // std::cout << "PrefFracMiss" << std::endl;
-    return prefFrac;
+    for (int i = 0; i < 3; i++) {
+        if(fracPos == fracInterpDependencies[prefFrac][fracDepList][i]) {
+            std::cout << "PrefFracDependHit" << std::endl;
+            return fracPos; // no adjusts
+        }
+    }      
+
+    std::cout << "PrefFracMiss" << std::endl;
+    return prefFrac; // adjusts frac MV pos to prefFrac
     
 }
 
@@ -325,7 +358,11 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
         }
     }
     
-    std::pair<int, double> prefFracResult = prefFracMap.at(ctuLineKey);
+    std::pair<std::pair<int, int>, double> prefFracResult = prefFracMap.at(ctuLineKey);
+
+    int prefFrac = prefFracResult.first.first;
+    int prefHalfFrac = prefFracResult.first.second;
+    double prefFracHit = prefFracResult.second;
 
     std::pair<int, double> avgMVResult;
 
@@ -336,7 +373,7 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
 
     totalDecodedMVs ++;
     
-    if(prefFracResult.first == -1 || !isFrac)
+    if(prefFrac == -1 || !isFrac)
         return;
 
     if(! isFracOnly) {
@@ -370,7 +407,7 @@ void NdpDecoderOptimizer::modifyMV(int currFramePoc, PosType xPU, PosType yPU, S
         }
     }
 
-    int fracPosAdjusted = fracPosToBeAdjusted(fracPosition, prefFracResult.first);
+    int fracPosAdjusted = fracPosToBeAdjusted(prefFracHit, fracPosition, prefFrac, prefHalfFrac);
 
 
     // Adjusting frac position to the prefFrac of the current CTU Line
