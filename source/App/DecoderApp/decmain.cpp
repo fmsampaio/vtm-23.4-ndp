@@ -86,6 +86,7 @@ int main(int argc, char* argv[])
   }
 
   NdpDecoderOptimizer::setOptMode(pcDecApp->cfgFracOnly);
+  NdpDecoderOptimizer::setOptClscTh(pcDecApp->optClscTh);
   NdpDecoderOptimizer::openBaseMvLogFile(pcDecApp->mvLogFileName, pcDecApp->frameWidth, pcDecApp->frameHeight);
   MvLogger::init();
 

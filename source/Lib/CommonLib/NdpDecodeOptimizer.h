@@ -44,10 +44,12 @@ class NdpDecoderOptimizer {
         static bool isFracOnly;
 
         static int frameWidth, frameHeight;
+        static double optClscTh;
 
     public: 
         static void openBaseMvLogFile(std::string fileName, int width, int height);
         static void setOptMode(int fracOnlyCfg);
+        static void setOptClscTh(double th);
         
         static std::string generateMvLogMapKey(int currFramePoc, PosType xPU, PosType yPU, int refList, int refFramePoc);
         static std::string generateKeyPerCTULine(int currFramePoc, PosType xPU, PosType yPU, int refList);

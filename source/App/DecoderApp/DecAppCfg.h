@@ -106,6 +106,7 @@ public:
   std::string mvLogFileName;
   int cfgFracOnly;
   int frameWidth, frameHeight;
+  double optClscTh;
   
   DecAppCfg();
   virtual ~DecAppCfg();

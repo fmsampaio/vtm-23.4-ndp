@@ -9,7 +9,7 @@ long long int NdpDecoderOptimizer::countAdjustedMVs, NdpDecoderOptimizer::totalD
 bool NdpDecoderOptimizer::isFracOnly;
 int NdpDecoderOptimizer::frameWidth, NdpDecoderOptimizer::frameHeight;
 
-double GLOBAL_TH = 0.0;
+double NdpDecoderOptimizer::optClscTh;
 
 int NdpDecoderOptimizer::fracInterpDependencies[16][2][3] = {
     { {-1, -1, -1} , {-1, -1, -1} }, //0
@@ -308,17 +308,21 @@ std::pair<int, double> NdpDecoderOptimizer::calculateAvgMV(std::list<MvLogData*>
 
 }
 
+void NdpDecoderOptimizer::setOptClscTh(double th) {
+    optClscTh = th;
+}
+
 int NdpDecoderOptimizer::fracPosToBeAdjusted(double prefFracHit, int fracPos, int prefFrac, int prefHalfFrac) {
     // for debug
-    // std::cout << "FRAC: (" << prefFracHit << ") " << fracPos << " --> " << prefFrac << " ==> ";
+    std::cout << "FRAC: (" << prefFracHit << ") " << fracPos << " --> " << prefFrac << " ==> ";
 
-    if(prefFracHit < GLOBAL_TH) {  // Threshold to disable MVs adjustments according to prefFracHit
-        // std::cout << "ThSkip" << std::endl;
+    if(prefFracHit < optClscTh) {  // Threshold to disable MVs adjustments according to prefFracHit
+        std::cout << "NoAdjust" << std::endl;
         return fracPos; // no adjusts
     }
 
     if(fracPos == prefFrac) {
-        // std::cout << "PrefFracHit" << std::endl;
+        std::cout << "PrefFracHit" << std::endl;
         return fracPos; // no adjusts
     }   
 
@@ -330,12 +334,12 @@ int NdpDecoderOptimizer::fracPosToBeAdjusted(double prefFracHit, int fracPos, in
 
     for (int i = 0; i < 3; i++) {
         if(fracPos == fracInterpDependencies[prefFrac][fracDepList][i]) {
-            // std::cout << "PrefFracDependHit" << std::endl;
+            std::cout << "PrefFracDependHit" << std::endl;
             return fracPos; // no adjusts
         }
     }      
 
-    // std::cout << "PrefFracMiss" << std::endl;
+    std::cout << "PrefFracMiss" << std::endl;
     return prefFrac; // adjusts frac MV pos to prefFrac
     
 }

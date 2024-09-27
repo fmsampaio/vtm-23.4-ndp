@@ -136,6 +136,7 @@ bool DecAppCfg::parseCfg( int argc, char* argv[] )
   ("FracOnly",                 cfgFracOnly,            0,               "Run only fractional MVs optimized decoding: (0) full-opt (1) frac-only.")
   ("FrameWidth",                 frameWidth,            0,               "Frame width")
   ("FrameHeight",                 frameHeight,            0,               "Frame height")  
+  ("OptClscTh",                 optClscTh,            0.0,               "NDP Decoder optimization Threshold")
     ;
   // clang-format on
 
